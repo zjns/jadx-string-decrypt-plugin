@@ -98,6 +98,30 @@ class JadxStringDecryptPluginIntegrationTest {
 	}
 
 	@Test
+	void removesAliasedByteArraySetupAfterXorUtf8Replacement() throws Exception {
+		JadxArgs args = new JadxArgs();
+		args.getInputFiles().add(getSampleDir("byte-array-move-alias-decrypt/com/example/AliasBytesApp.smali"));
+		args.setPluginOptions(Map.of(
+				JadxStringDecryptPlugin.PLUGIN_ID + ".methodSignatures",
+				"Lcom/example/AliasBytesApp;->dec([B[B)Ljava/lang/String;",
+				JadxStringDecryptPlugin.PLUGIN_ID + ".decoder",
+				"xor_utf8"));
+
+		try (JadxDecompiler jadx = new JadxDecompiler(args)) {
+			jadx.registerPlugin(new JadxStringDecryptPlugin());
+			jadx.load();
+
+			JavaClass appClass = jadx.searchJavaClassByOrigFullName("com.example.AliasBytesApp");
+			assertThat(appClass).isNotNull();
+
+			String code = appClass.getCode();
+			assertThat(code).contains("return \"hello\";");
+			assertThat(code).contains("public static String run() {\n        return \"hello\";\n    }");
+			assertThat(code).doesNotContain("dec(new byte");
+		}
+	}
+
+	@Test
 	void replacesConfiguredByteArrayDecryptCallUsingCharsetConstructor() throws Exception {
 		JadxArgs args = new JadxArgs();
 		args.getInputFiles().add(getSampleDir("byte-array-charset-decrypt/com/example/CharsetBytesApp.smali"));

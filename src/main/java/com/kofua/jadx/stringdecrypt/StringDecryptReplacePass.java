@@ -356,7 +356,7 @@ public class StringDecryptReplacePass implements JadxDecompilePass {
 			return;
 		}
 		Set<InsnNode> expanded = new LinkedHashSet<>(cleanup);
-		expandCleanupAssignments(expanded);
+		expandCleanupAssignments(expanded, invoke);
 		if (!isCleanupSafe(expanded, invoke)) {
 			LOG.debug("Skip hiding string decrypt argument setup with external uses for {}", invoke.getCallMth().getRawFullId());
 			return;
@@ -364,7 +364,7 @@ public class StringDecryptReplacePass implements JadxDecompilePass {
 		InsnRemover.unbindInsns(mth, new ArrayList<>(expanded));
 	}
 
-	private static void expandCleanupAssignments(Set<InsnNode> cleanup) {
+	private static void expandCleanupAssignments(Set<InsnNode> cleanup, BaseInvokeNode invoke) {
 		boolean changed;
 		do {
 			changed = false;
@@ -372,13 +372,47 @@ public class StringDecryptReplacePass implements JadxDecompilePass {
 			for (InsnNode insn : snapshot) {
 				for (InsnArg arg : insn.getArguments()) {
 					InsnNode assignInsn = assignInsnOf(arg);
-					if (assignInsn != null && !cleanup.contains(assignInsn) && isResultUsedOnlyBy(assignInsn, cleanup, null)) {
+					if (assignInsn != null && !cleanup.contains(assignInsn) && isResultUsedOnlyBy(assignInsn, cleanup, invoke)) {
 						cleanup.add(assignInsn);
 						changed = true;
 					}
 				}
+				if (expandCleanupAliasUses(insn, cleanup, invoke)) {
+					changed = true;
+				}
 			}
 		} while (changed);
+	}
+
+	private static boolean expandCleanupAliasUses(InsnNode insn, Set<InsnNode> cleanup, BaseInvokeNode invoke) {
+		RegisterArg result = insn.getResult();
+		if (result == null || result.getSVar() == null) {
+			return false;
+		}
+		boolean changed = false;
+		for (RegisterArg use : result.getSVar().getUseList()) {
+			InsnNode parentInsn = use.getParentInsn();
+			if (parentInsn == null || parentInsn == invoke || cleanup.contains(parentInsn)) {
+				continue;
+			}
+			if (isCleanupAlias(parentInsn)) {
+				cleanup.add(parentInsn);
+				changed = true;
+			}
+		}
+		return changed;
+	}
+
+	private static boolean isCleanupAlias(InsnNode insn) {
+		switch (insn.getType()) {
+			case MOVE:
+			case ONE_ARG:
+			case CAST:
+				return insn.getResult() != null && insn.getArgsCount() == 1;
+
+			default:
+				return false;
+		}
 	}
 
 	private static boolean isCleanupSafe(Set<InsnNode> cleanup, BaseInvokeNode invoke) {
