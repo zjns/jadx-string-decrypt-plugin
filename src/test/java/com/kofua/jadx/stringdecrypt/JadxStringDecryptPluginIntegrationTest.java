@@ -74,6 +74,30 @@ class JadxStringDecryptPluginIntegrationTest {
 	}
 
 	@Test
+	void xorUtf8DecoderMatchesMultipleConfiguredMethods() throws Exception {
+		JadxArgs args = new JadxArgs();
+		args.getInputFiles().add(getSampleDir("xor-multi-methods/com/example/XorMultiApp.smali"));
+		args.setPluginOptions(Map.of(
+				JadxStringDecryptPlugin.PLUGIN_ID + ".methodSignatures",
+				"Lcom/example/XorMultiApp;->decA([B[B)Ljava/lang/String;,Lcom/example/XorMultiApp;->decB([B[B)Ljava/lang/String;",
+				JadxStringDecryptPlugin.PLUGIN_ID + ".decoder",
+				"xor_utf8"));
+
+		try (JadxDecompiler jadx = new JadxDecompiler(args)) {
+			jadx.registerPlugin(new JadxStringDecryptPlugin());
+			jadx.load();
+
+			JavaClass appClass = jadx.searchJavaClassByOrigFullName("com.example.XorMultiApp");
+			assertThat(appClass).isNotNull();
+
+			String code = appClass.getCode();
+			assertThat(code).contains("return \"hello\".concat(\"foo\");");
+			assertThat(code).doesNotContain("decA(new byte");
+			assertThat(code).doesNotContain("decB(new byte");
+		}
+	}
+
+	@Test
 	void replacesConfiguredByteArrayDecryptCallUsingCharsetConstructor() throws Exception {
 		JadxArgs args = new JadxArgs();
 		args.getInputFiles().add(getSampleDir("byte-array-charset-decrypt/com/example/CharsetBytesApp.smali"));

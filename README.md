@@ -81,6 +81,14 @@ jadx app.apk -Pstring-decrypt.decoder=xor_utf8
 
 Use `template`, `identity`, or `xor_utf8` only when you want to bypass method-body evaluation and force a plugin-side decoder.
 
+When using `xor_utf8`, multiple decrypt methods can be matched by passing a comma-separated signature list:
+
+```bash
+jadx app.apk \
+  -Pstring-decrypt.decoder=xor_utf8 \
+  -Pstring-decrypt.methodSignatures='Lcom/example/S;->decA([B[B)Ljava/lang/String;,Lcom/example/T;->decB([B[B)Ljava/lang/String;'
+```
+
 ## What It Handles
 
 - `String -> String` decrypt calls when the argument is a constant string
