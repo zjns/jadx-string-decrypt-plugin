@@ -97,3 +97,7 @@ jadx app.apk \
 - simple decrypt method bodies with constants, moves, arithmetic, byte arrays, array access, loops, branches, and `new String(byte[])`
 
 If an argument is not constant, the method body uses unsupported instructions, or evaluation returns `null`, the original invoke is left unchanged.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
